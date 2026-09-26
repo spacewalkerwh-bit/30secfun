@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ChoteGames — XO Slide</title>
+<style>
+:root{--bg:#0b0b10;--card:#15151d;--line:#30303b;--text:#f7f7fa;--muted:#9b9baa}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,sans-serif;display:flex;justify-content:center;min-height:100vh}.wrap{width:min(430px,100%);padding:24px 16px}.brand{text-align:center;font-weight:800;font-size:20px}.sub{text-align:center;color:var(--muted);font-size:13px;margin-top:4px}.card{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:18px}.top{display:flex;justify-content:space-between;align-items:center}.stat{text-align:center}.label{font-size:10px;color:var(--muted);letter-spacing:1px}.value{font-weight:800;font-size:22px;margin-top:2px}.board{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:22px 0}.cell{aspect-ratio:1;border:1px solid #363641;background:#101017;border-radius:15px;color:white;font-size:42px;font-weight:800;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none}.cell:disabled{cursor:default}.cell.o{color:#bdbdc8}.cell.selected{border-color:#fff;box-shadow:inset 0 0 0 2px rgba(255,255,255,.18)}.cell.target{border-color:#777783}.cell.winX{border-color:#43ff78;background:#15351f;color:#fff;box-shadow:0 0 10px rgba(67,255,120,.75),inset 0 0 18px rgba(67,255,120,.18);animation:winPulse .7s ease-in-out infinite alternate}.cell.winO{border-color:#ff4b55;background:#3a1518;color:#fff;box-shadow:0 0 10px rgba(255,75,85,.75),inset 0 0 18px rgba(255,75,85,.18);animation:winPulse .7s ease-in-out infinite alternate}@keyframes winPulse{from{transform:scale(1)}to{transform:scale(1.025)}}.card.winFlash{animation:cardFlash .55s ease}@keyframes cardFlash{0%{box-shadow:0 0 0 rgba(255,255,255,0)}45%{box-shadow:0 0 28px rgba(255,255,255,.18)}100%{box-shadow:none}}.message{text-align:center;min-height:24px;color:#c9c9d3;font-size:14px}.btn{width:100%;height:48px;border:0;border-radius:13px;background:#fff;color:#111;font-weight:800;font-size:15px;cursor:pointer;margin-top:10px}.secondary{background:#22222b;color:#fff;border:1px solid #393944}.hidden{display:none}.result{text-align:center;padding:8px 0}.result h2{margin:6px 0 4px;font-size:27px}.result p{color:var(--muted);margin:0}.small{font-size:12px;color:var(--muted);text-align:center;margin-top:12px;line-height:1.5}
+</style><script async src="https://www.googletagmanager.com/gtag/js?id=G-QR0J1SX7XB"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-QR0J1SX7XB');</script></head>
+<body><div style="position:fixed;top:10px;left:12px;z-index:50;font-size:12px"><a href="index.html" style="color:#8f98a8;text-decoration:none;font-weight:800">← GAMES</a></div><main class="wrap" id="app">
+<div class="brand">30secfun</div><div class="sub">XO Slide</div>
+<section class="card" id="game">
+<div class="top"><div class="stat"><div class="label">YOU</div><div class="value">X</div></div><div class="stat"><div class="label">TIME</div><div class="value" id="time">0.0s</div></div><div class="stat"><div class="label">BEST</div><div class="value" id="best">—</div></div></div>
+<div class="board" id="board"></div><div class="message" id="message">Place your first X</div>
+<button class="btn" id="restart" type="button">NEW GAME</button>
+<div class="small">First place 3 marks. Then move your own marks to any open box.</div>
+</section>
+<section class="card hidden" id="result"><div class="result"><h2 id="resultTitle"></h2><p id="resultText"></p></div><button class="btn" id="again" type="button">PLAY AGAIN</button><button class="btn secondary" id="share" type="button">CHALLENGE A FRIEND</button></section>
+</main>
+<script>
+(()=>{
+const WINS=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+const boardEl=document.getElementById('board'),timeEl=document.getElementById('time'),bestEl=document.getElementById('best'),msg=document.getElementById('message'),game=document.getElementById('game'),result=document.getElementById('result'),resultTitle=document.getElementById('resultTitle'),resultText=document.getElementById('resultText');
+let cells=[],marks=[],active=false,timer=null,startTime=0,elapsed=0,player='X',computer='O',selected=null,dragFrom=null,suppressClick=false,challengeTime=null,winningLine=null;
+let personalBest=Number(localStorage.getItem('xoSlideBest')||'');
+function updateBest(){bestEl.textContent=Number.isFinite(personalBest)&&personalBest>0?formatTime(personalBest):'—'}
+updateBest();
+
+const params=new URLSearchParams(location.search);
+if(params.has('challenge')){const n=Number(params.get('challenge'));if(Number.isFinite(n)&&n>0&&n<3600)challengeTime=n;}
+
+function count(state,p){return state.filter(x=>x.p===p).length}
+function formatTime(sec){return sec<60?sec.toFixed(1)+'s':Math.floor(sec/60)+'m '+(sec%60).toFixed(1)+'s'}
+function reset(){clearInterval(timer);elapsed=0;marks=[];selected=null;dragFrom=null;suppressClick=false;winningLine=null;active=true;game.classList.remove('hidden');result.classList.add('hidden');timeEl.textContent='0.0s';build();msg.textContent=challengeTime?`Beat ${formatTime(challengeTime)} to win the challenge`:'Place your first X';startTime=performance.now();timer=setInterval(()=>{elapsed=(performance.now()-startTime)/1000;timeEl.textContent=formatTime(elapsed)},100)}
+function build(){boardEl.innerHTML='';cells=[];for(let i=0;i<9;i++){const b=document.createElement('button');b.className='cell';b.type='button';b.dataset.i=i;b.addEventListener('click',()=>{if(suppressClick){suppressClick=false;return}cellClick(i)});b.addEventListener('pointerdown',e=>pointerDown(e,i));b.addEventListener('pointermove',e=>pointerMove(e,i));b.addEventListener('pointerup',e=>pointerUp(e,i));b.addEventListener('pointercancel',()=>{dragFrom=null});b.addEventListener('contextmenu',e=>e.preventDefault());boardEl.appendChild(b);cells.push(b)}render()}
+function render(){cells.forEach((b,i)=>{const m=marks.find(x=>x.i===i);b.textContent=m?m.p:'';b.className='cell'+(m?' '+m.p.toLowerCase():'')+(selected===i?' selected':'')+(selected!==null&&!m?' target':'')+(winningLine&&winningLine.line.includes(i)?(winningLine.player==='X'?' winX':' winO'):'');b.disabled=!active||(!m&&selected===null&&count(marks,player)>=3)||!!m&&m.p!==player})}
+function place(i,p,state=marks){const next=state.map(x=>({...x}));if(next.some(x=>x.i===i))return next;next.push({i,p});return next}
+function slide(from,to,p,state=marks){if(from===to||state.some(x=>x.i===to))return state;return state.map(x=>x.i===from?{...x,i:to}:{...x})}
+function cellClick(i){if(!active)return;
+ if(count(marks,player)<3){if(marks.some(x=>x.i===i))return;playerPlace(i);return}
+ if(selected!==null){if(i===selected){selected=null;render();msg.textContent='Choose where to move your X';return}if(!marks.some(x=>x.i===i)){playerSlide(selected,i);return}}
+ const m=marks.find(x=>x.i===i);if(m&&m.p===player){selected=i;render();msg.textContent='Tap an open box to move'}
+}
+function playerPlace(i){marks=place(i,player);render();if(checkWin(marks,player)){finishWin();return}msg.textContent=count(marks,player)<3?'Place your next X':'Computer thinking…';setTimeout(ai,180)}
+function playerSlide(from,to){marks=slide(from,to,player);selected=null;render();if(checkWin(marks,player)){finishWin();return}msg.textContent='Computer thinking…';setTimeout(ai,180)}
+function pointerDown(e,i){if(!active||((e.pointerType==='mouse')&&e.button!==0))return;const m=marks.find(x=>x.i===i);if(m&&m.p===player&&count(marks,player)>=3){dragFrom=i;selected=i;try{e.currentTarget.setPointerCapture(e.pointerId)}catch(_){}render();msg.textContent='Drag to an open box'}else{dragFrom=null}}
+function pointerMove(e,i){if(dragFrom===null||!active)return;const target=e.currentTarget;const under=document.elementFromPoint(e.clientX,e.clientY);const cell=under&&under.closest?under.closest('.cell'):null;if(cell){const to=Number(cell.dataset.i);cells.forEach((b,idx)=>b.classList.toggle('target',idx!==dragFrom&&!marks.some(x=>x.i===idx)&&idx===to))}}
+function pointerUp(e,i){if(!active||dragFrom===null)return;const from=dragFrom;dragFrom=null;suppressClick=true;let to=i;const under=document.elementFromPoint(e.clientX,e.clientY);const cell=under&&under.closest?under.closest('.cell'):null;if(cell)to=Number(cell.dataset.i);if(to!==from&&!marks.some(x=>x.i===to)){playerSlide(from,to)}else{selected=from;render()}}
+
+function ai(){if(!active)return;let bestMove=null,bestScore=-Infinity;
+ const aiCount=count(marks,computer);
+ if(aiCount<3){const empties=emptyCells(marks);for(const i of empties){const next=place(i,computer);let score=checkWin(next,computer)?100000:minimax(next,player,3,-Infinity,Infinity);if(score>bestScore){bestScore=score;bestMove={type:'place',to:i}}}}
+ else {const moves=movementMoves(marks,computer);if(!moves.length){msg.textContent='Your move';return}for(const mv of moves){const next=slide(mv.from,mv.to,computer,marks);let score=checkWin(next,computer)?100000:minimax(next,player,4,-Infinity,Infinity);if(score>bestScore){bestScore=score;bestMove={type:'move',from:mv.from,to:mv.to}}}}
+ if(!bestMove){msg.textContent='Your move';return}
+ marks=bestMove.type==='place'?place(bestMove.to,computer):slide(bestMove.from,bestMove.to,computer);
+ render();if(checkWin(marks,computer)){finish('YOU LOSE','The computer made a winning line.');return}
+ msg.textContent=count(marks,player)<3?'Place your next X':'Your move';
+}
+function minimax(state,turn,depth,alpha,beta){if(checkWin(state,computer))return 100000+depth;if(checkWin(state,player))return -100000-depth;if(depth===0)return evaluate(state);
+ const moves=turn===computer?allMoves(state,computer):allMoves(state,player);if(!moves.length)return 0;
+ if(turn===computer){let best=-Infinity;for(const mv of moves){const next=applyMove(state,mv,computer);const v=minimax(next,player,depth-1,alpha,beta);best=Math.max(best,v);alpha=Math.max(alpha,v);if(beta<=alpha)break}return best}
+ let best=Infinity;for(const mv of moves){const next=applyMove(state,mv,player);const v=minimax(next,computer,depth-1,alpha,beta);best=Math.min(best,v);beta=Math.min(beta,v);if(beta<=alpha)break}return best}
+function allMoves(state,p){if(count(state,p)<3)return emptyCells(state).map(to=>({type:'place',to}));return movementMoves(state,p).map(m=>({type:'move',from:m.from,to:m.to}))}
+function applyMove(state,m,p){return m.type==='place'?place(m.to,p,state):slide(m.from,m.to,p,state)}
+function movementMoves(state,p){const out=[];const empties=emptyCells(state);for(const m of state.filter(x=>x.p===p))for(const to of empties)out.push({from:m.i,to});return out}
+function emptyCells(state){const out=[];for(let i=0;i<9;i++)if(!state.some(x=>x.i===i))out.push(i);return out}
+function evaluate(state){let s=0;for(const line of WINS){const mine=line.filter(i=>state.some(x=>x.i===i&&x.p===computer)).length;const theirs=line.filter(i=>state.some(x=>x.i===i&&x.p===player)).length;if(mine&&!theirs)s+=mine*15;if(theirs&&!mine)s-=theirs*16}const c=state.find(x=>x.i===4);if(c)s+=c.p===computer?7:-7;return s}
+function checkWin(state,p){return WINS.some(line=>line.every(i=>state.some(x=>x.i===i&&x.p===p)))}
+function getWinningLine(state,p){return WINS.find(line=>line.every(i=>state.some(x=>x.i===i&&x.p===p)))||null}
+function playSound(kind){try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;const ctx=new C();const now=ctx.currentTime;const notes=kind==='win'?[523,659,784,1047]:[220,180,140];notes.forEach((freq,i)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.type=kind==='win'?'sine':'sawtooth';o.frequency.value=freq;g.gain.setValueAtTime(.0001,now+i*.11);g.gain.exponentialRampToValueAtTime(kind==='win'?.16:.11,now+i*.11+.015);g.gain.exponentialRampToValueAtTime(.0001,now+i*.11+.10);o.connect(g);g.connect(ctx.destination);o.start(now+i*.11);o.stop(now+i*.11+.12)});setTimeout(()=>ctx.close(),700)}catch(e){}}
+function celebrate(kind){playSound(kind);if(navigator.vibrate)navigator.vibrate(kind==='win'?[80,50,120]:[180,60,180])}
+function showResultLater(){setTimeout(()=>{game.classList.add('hidden');result.classList.remove('hidden')},1100)}
+function finishWin(){if(!active)return;active=false;clearInterval(timer);elapsed=(performance.now()-startTime)/1000;timeEl.textContent=formatTime(elapsed);selected=null;const line=getWinningLine(marks,player);winningLine=line?{player:'X',line}:null;render();game.classList.add('winFlash');msg.textContent='🎉 Winning line!';celebrate('win');resultTitle.textContent=challengeTime?(elapsed<challengeTime?'YOU BEAT THE CHALLENGE!':'CHALLENGE BEATEN YOU'):'YOU WIN!';let pbText='';
+if(!challengeTime && (!Number.isFinite(personalBest)||personalBest<=0||elapsed<personalBest)){personalBest=elapsed;localStorage.setItem('xoSlideBest',personalBest.toFixed(3));updateBest();pbText=' 🎉 NEW PERSONAL BEST!';}
+else if(!challengeTime){pbText=` Best: ${formatTime(personalBest)}.`}
+resultText.textContent=challengeTime?`You won in ${formatTime(elapsed)} — challenge was ${formatTime(challengeTime)}.`:`You won in ${formatTime(elapsed)}.${pbText}`;showResultLater()}
+function finish(title,text){if(!active)return;active=false;clearInterval(timer);elapsed=(performance.now()-startTime)/1000;timeEl.textContent=formatTime(elapsed);selected=null;const line=getWinningLine(marks,computer);winningLine=line?{player:'O',line}:null;render();game.classList.add('winFlash');msg.textContent='😅 Computer wins!';celebrate('lose');resultTitle.textContent=title;resultText.textContent=text;showResultLater()}
+document.getElementById('restart').addEventListener('click',reset);document.getElementById('again').addEventListener('click',reset);document.getElementById('share').addEventListener('click',async()=>{const score=Math.max(0,elapsed);const url=new URL(location.href);url.searchParams.set('challenge',score.toFixed(1));const data={title:'ChoteGames — XO Slide Challenge',text:`I won XO Slide in ${formatTime(score)}. Can you beat me?`,url:url.href};try{if(navigator.share)await navigator.share(data);else if(navigator.clipboard){await navigator.clipboard.writeText(url.href);msg.textContent='Challenge link copied!'}}catch(e){}});reset();
+})();
+</script></body></html>
