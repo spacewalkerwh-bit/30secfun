@@ -1,0 +1,68 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>ChoteGames — Bakru Dash</title><style>*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#8bd5ef;font-family:Arial,sans-serif}#game{width:100vw;height:100vh;position:relative;overflow:hidden;touch-action:none}canvas{width:100%;height:100%;display:block}.hud{position:absolute;top:16px;left:18px;color:#fff;font-weight:800;text-shadow:2px 2px 4px #333;font-size:25px;z-index:5}.hud .score{position:fixed;top:16px;right:18px;text-align:right}.best{font-size:14px;margin-top:3px}.panel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;padding:28px;border-radius:22px;text-align:center;box-shadow:0 12px 35px #0005;min-width:280px}.panel h1{margin:0 0 8px;font-size:40px}.panel p{color:#555}.panel button{border:0;background:#39a852;color:#fff;padding:13px 26px;border-radius:13px;font-weight:bold;font-size:18px}.hide{display:none}</style><script async src="https://www.googletagmanager.com/gtag/js?id=G-QR0J1SX7XB"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-QR0J1SX7XB');</script></head><body><div style="position:fixed;top:10px;left:12px;z-index:50;font-size:12px"><a href="index.html" style="color:#fff;text-decoration:none;font-weight:800;text-shadow:1px 1px 3px #000">← MORE GAMES</a></div><div id="game"><canvas id="c"></canvas><div class="hud"><div id="gamesLink" style="font-size:14px;cursor:pointer">← MORE GAMES</div><div class="score"><div id="score">0</div><div class="best" id="best">Best 0</div></div></div><div id="start" class="panel"><h1>🐐 Bakru Dash</h1><p>Jump, climb the platforms & cross the countryside!</p><button>START</button></div><div id="over" class="panel hide"><h1>Game Over</h1><p id="final"></p><button>PLAY AGAIN</button><button id="shareBtn" style="margin-top:10px;background:#171b24">SHARE CHALLENGE</button></div></div><script>
+const C=document.getElementById('c'),X=C.getContext('2d'),G=document.getElementById('game');let W,H,D=1;function resize(){W=G.clientWidth;H=G.clientHeight;D=Math.min(devicePixelRatio||1,2);C.width=W*D;C.height=H*D;X.setTransform(D,0,0,D,0,0)}addEventListener('resize',resize);resize();
+let run=false,t0=0,score=0,best=+localStorage.bakruBest||0,speed=300,spawn=0,grassT=1,platT=4,scene=0,sceneX=0,obs=[],grass=[],plats=[],dust=[];const challengeValue=(()=>{const n=Number(new URLSearchParams(location.search).get('challenge'));return Number.isFinite(n)&&n>0&&n<100000?n:null})();let goat={x:90,y:0,w:62,h:58,vy:0,ground:true};const ground=()=>H*.78;
+let AC,amb;function sound(freq,dur,gain=.12,type='sine'){try{AC=AC||new AudioContext();let o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.value=freq;g.gain.value=gain;o.connect(g);g.connect(AC.destination);o.start();g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+dur);o.stop(AC.currentTime+dur)}catch(e){}}function ambient(){try{AC=AC||new AudioContext();if(amb)return;amb=AC.createOscillator();let g=AC.createGain();amb.type='sine';amb.frequency.value=196;g.gain.value=.025;amb.connect(g);g.connect(AC.destination);amb.start()}catch(e){}}
+function reset(){score=0;speed=300;spawn=.5;grassT=.8;platT=3.5;waterT=5;sceneX=0;scene=0;obs=[];grass=[];plats=[];water=[];dust=[];goat.y=ground()-goat.h;goat.vy=0;goat.ground=true;document.getElementById('score').textContent='0';document.getElementById('best').textContent='Best '+best}
+function start(){ambient();reset();run=true;document.getElementById('start').classList.add('hide');document.getElementById('over').classList.add('hide');t0=performance.now();requestAnimationFrame(loop)}function over(){run=false;if(Math.floor(score)>best){best=Math.floor(score);localStorage.bakruBest=best}document.getElementById('best').textContent='Best '+best;document.getElementById('final').textContent=challengeValue?(Math.floor(score)>=Math.floor(challengeValue)?'You beat the challenge! Score '+Math.floor(score)+' • Challenge '+Math.floor(challengeValue):'Score '+Math.floor(score)+' • Challenge '+Math.floor(challengeValue)):'Score '+Math.floor(score)+' • Best '+best;document.getElementById('over').classList.remove('hide');sound(110,.45,.2,'sawtooth')}
+function bleat(){try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();let now=AC.currentTime;[0,1,2].forEach((i)=>{let o=AC.createOscillator(),g=AC.createGain();o.type='sawtooth';o.frequency.setValueAtTime(300-i*25,now+i*.12);o.frequency.exponentialRampToValueAtTime(180-i*10,now+i*.12+.16);g.gain.setValueAtTime(.0001,now+i*.12);g.gain.exponentialRampToValueAtTime(.18,now+i*.12+.03);g.gain.exponentialRampToValueAtTime(.0001,now+i*.12+.18);o.connect(g);g.connect(AC.destination);o.start(now+i*.12);o.stop(now+i*.12+.2)})}catch(e){}}
+function jump(){if(!run)return;if(goat.ground){goat.vy=-590;goat.ground=false;sound(520,.12,.14,'triangle'); bleat();for(let i=0;i<5;i++)dust.push({x:goat.x+20,y:ground(),vx:-40-Math.random()*60,vy:-30-Math.random()*50,l:.5})}}
+addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();jump()}});G.addEventListener('pointerdown',e=>{if(e.target.tagName!=='BUTTON')jump()});document.querySelector('#start button').onclick=start;document.querySelector('#over button').onclick=start;document.getElementById('gamesLink').onclick=()=>location.href='index.html';document.getElementById('shareBtn').onclick=async()=>{const n=Math.floor(score);const url=new URL(location.href);url.searchParams.set('challenge',n);const data={title:'ChoteGames — Bakru Dash Challenge',text:`I scored ${n} in Bakru Dash. Can you beat me?`,url:url.href};try{if(navigator.share)await navigator.share(data);else if(navigator.clipboard){await navigator.clipboard.writeText(url.href);alert('Challenge link copied!')}}catch(e){}};
+function obstacle(){let fence=Math.random()<.5;obs.push({x:W+30,y:ground()-(fence?58:48),w:fence?58:58,h:fence?58:48,type:fence?'fence':'lion'})}function platform(){let y=ground()-125-Math.random()*135;plats.push({x:W+40,y,w:120+Math.random()*55,h:16})}function pickup(){grass.push({x:W+20,y:ground()-80-Math.random()*120,r:10})}
+function hit(a,b){return a.x+10<b.x+b.w&&a.x+a.w-10>b.x&&a.y+8<b.y+b.h&&a.y+a.h-5>b.y}
+function update(dt){speed+=dt*5;sceneX+=speed*dt;if(sceneX>1600){sceneX-=1600;scene=(scene+1)%4}goat.vy+=1500*dt;goat.y+=goat.vy*dt;if(goat.y+goat.h>=ground()){goat.y=ground()-goat.h;goat.vy=0;goat.ground=true}spawn-=dt;grassT-=dt;platT-=dt;if(spawn<0){obstacle();spawn=.72+Math.random()*.55-Math.min(score/1000,.22)}if(grassT<0){pickup();grassT=.9+Math.random()*1.1}if(platT<0){platform();platT=5+Math.random()*5}for(let a of obs)a.x-=speed*dt;for(let a of plats)a.x-=speed*dt;for(let a of grass)a.x-=speed*dt;obs=obs.filter(a=>a.x+a.w>-30);plats=plats.filter(a=>a.x+a.w>-30);grass=grass.filter(a=>a.x+20>-20);
+for(let p of plats){if(goat.vy>=0&&goat.x+goat.w-8>p.x&&goat.x+8<p.x+p.w&&goat.y+goat.h>=p.y&&goat.y+goat.h<=p.y+p.h+goat.vy*dt+4){goat.y=p.y-goat.h;goat.vy=0;goat.ground=true}}for(let o of obs)if(hit(goat,o)){over();return}for(let i=grass.length-1;i>=0;i--)if(hit(goat,{x:grass[i].x-10,y:grass[i].y-10,w:20,h:20})){score+=5;sound(880,.1,.16,'triangle');grass.splice(i,1)}for(let d of dust){d.x+=d.vx*dt;d.y+=d.vy*dt;d.vy+=160*dt;d.l-=dt}dust=dust.filter(d=>d.l>0);score+=dt*1.5;document.getElementById('score').textContent=Math.floor(score)}
+function sky(){let s=scene;let sky=['#8bd5ef','#f6c77a','#a9d99a','#c9d8ed'][s],g=['#d5bd70','#cda96b','#82b95f','#8e9b76'][s];X.fillStyle=sky;X.fillRect(0,0,W,H);X.fillStyle='#ffffff88';for(let x=80-(sceneX*.08%500);x<W+100;x+=360){X.beginPath();X.arc(x,80,28,0,7);X.arc(x+35,86,20,0,7);X.arc(x-30,88,18,0,7);X.fill()}// mountains
+X.fillStyle=['#6f967d','#9d765b','#557d67','#71849b'][s];X.beginPath();X.moveTo(0,ground());for(let x=-200-(sceneX*.18%400);x<W+400;x+=240){X.lineTo(x+90,ground()-150-(x%70));X.lineTo(x+190,ground()-35)}X.lineTo(W,ground());X.fill();X.fillStyle=g;X.fillRect(0,ground(),W,H-ground());X.fillStyle='#a88e4e';X.fillRect(0,ground()+7,W,5);}
+function drawGoat(){
+ let x=goat.x,y=goat.y,leg=Math.sin(performance.now()/75)*5;X.save();X.translate(x,y);
+ // shadow
+ X.fillStyle='#0003';X.beginPath();X.ellipse(34,goat.h+7,34,6,0,0,Math.PI*2);X.fill();
+ // back legs
+ X.strokeStyle='#4b3a2d';X.lineWidth=6;X.lineCap='round';X.beginPath();X.moveTo(22,39);X.lineTo(19+leg,56);X.moveTo(43,39);X.lineTo(47-leg,56);X.stroke();
+ // body shading
+ let g=X.createLinearGradient(5,10,55,45);g.addColorStop(0,'#faf7ef');g.addColorStop(.65,'#e8e0d1');g.addColorStop(1,'#c9bda8');X.fillStyle=g;
+ X.beginPath();X.ellipse(30,30,30,20,0,0,Math.PI*2);X.fill();
+ // neck
+ X.beginPath();X.ellipse(50,24,14,18,-.25,0,Math.PI*2);X.fill();
+ // head and muzzle
+ X.fillStyle='#eee7da';X.beginPath();X.ellipse(57,15,16,14,-.1,0,Math.PI*2);X.fill();
+ X.fillStyle='#d7cbb8';X.beginPath();X.ellipse(69,20,7,5,.05,0,Math.PI*2);X.fill();
+ // ears
+ X.fillStyle='#c9b99f';X.beginPath();X.moveTo(48,7);X.quadraticCurveTo(38,-3,35,2);X.quadraticCurveTo(39,11,50,12);X.fill();X.beginPath();X.moveTo(60,5);X.quadraticCurveTo(70,-5,73,2);X.quadraticCurveTo(69,10,60,11);X.fill();
+ // horns, curved backward
+ X.strokeStyle='#6b5134';X.lineWidth=4;X.beginPath();X.moveTo(50,7);X.quadraticCurveTo(45,-5,51,-11);X.moveTo(61,6);X.quadraticCurveTo(67,-5,61,-11);X.stroke();
+ // eyes
+ X.fillStyle='#17130f';X.beginPath();X.arc(59,13,2.5,0,Math.PI*2);X.fill();X.fillStyle='#fff';X.beginPath();X.arc(59.7,12.2,.7,0,Math.PI*2);X.fill();
+ // nostril and beard
+ X.fillStyle='#5a4330';X.beginPath();X.arc(72,20,1.3,0,Math.PI*2);X.fill();X.fillStyle='#6d5a45';X.beginPath();X.moveTo(62,27);X.quadraticCurveTo(66,35,69,28);X.quadraticCurveTo(65,31,62,27);X.fill();
+ // front legs
+ X.strokeStyle='#4b3a2d';X.lineWidth=6;X.beginPath();X.moveTo(50,39);X.lineTo(51+leg,56);X.moveTo(59,38);X.lineTo(63-leg,56);X.stroke();
+ // hooves
+ X.strokeStyle='#241e19';X.lineWidth=4;X.beginPath();X.moveTo(48+leg,56);X.lineTo(53+leg,56);X.moveTo(61-leg,56);X.lineTo(66-leg,56);X.stroke();
+ // short tail
+ X.strokeStyle='#b8aa95';X.lineWidth=5;X.beginPath();X.moveTo(3,22);X.quadraticCurveTo(-5,14,1,10);X.stroke();
+ X.restore();
+}
+function draw(){sky();for(let p of plats){X.fillStyle='#70451f';X.fillRect(p.x,p.y,p.w,p.h);X.fillStyle='#4b963e';X.fillRect(p.x,p.y-5,p.w,6);for(let x=p.x+12;x<p.x+p.w;x+=25){X.strokeStyle='#5d3b20';X.beginPath();X.moveTo(x,p.y+2);X.lineTo(x+7,p.y+13);X.stroke()}}for(let g of grass){X.strokeStyle='#238b43';X.lineWidth=4;for(let i=-2;i<3;i++){X.beginPath();X.moveTo(g.x,g.y+8);X.lineTo(g.x+i*5,g.y-10);X.stroke()}}for(let o of obs){if(o.type==='lion'){X.save();X.translate(o.x+o.w,o.y);X.scale(-1,1);
+ X.fillStyle='#0003';X.beginPath();X.ellipse(31,52,28,5,0,0,Math.PI*2);X.fill();
+ // body
+ X.fillStyle='#a96f2f';X.beginPath();X.ellipse(28,30,25,16,0,0,Math.PI*2);X.fill();
+ // rear legs
+ X.strokeStyle='#633d22';X.lineWidth=5;X.lineCap='round';X.beginPath();X.moveTo(14,38);X.lineTo(10,51);X.moveTo(27,40);X.lineTo(25,51);X.stroke();
+ // mane
+ X.fillStyle='#70401f';X.beginPath();X.arc(48,18,22,0,Math.PI*2);X.fill();
+ X.fillStyle='#9b5f28';X.beginPath();X.arc(48,18,16,0,Math.PI*2);X.fill();
+ // ears
+ X.fillStyle='#70401f';X.beginPath();X.moveTo(37,6);X.lineTo(33,-3);X.lineTo(44,3);X.fill();X.beginPath();X.moveTo(57,5);X.lineTo(64,-3);X.lineTo(63,9);X.fill();
+ // face
+ X.fillStyle='#c8893b';X.beginPath();X.ellipse(49,20,14,14,0,0,Math.PI*2);X.fill();
+ // eyes, brows
+ X.fillStyle='#17100b';X.beginPath();X.arc(44,16,2.4,0,Math.PI*2);X.arc(54,16,2.4,0,Math.PI*2);X.fill();
+ X.strokeStyle='#3c2414';X.lineWidth=2;X.beginPath();X.moveTo(41,12);X.lineTo(47,10);X.moveTo(51,10);X.lineTo(57,12);X.stroke();
+ // muzzle + aggressive mouth/teeth
+ X.fillStyle='#d9a96b';X.beginPath();X.ellipse(49,23,7,5,0,0,Math.PI*2);X.fill();X.fillStyle='#25140d';X.beginPath();X.ellipse(49,25,7,5,0,0,Math.PI*2);X.fill();X.fillStyle='#fff';X.beginPath();X.moveTo(44,25);X.lineTo(47,30);X.lineTo(49,25);X.lineTo(52,30);X.lineTo(54,25);X.fill();
+ // tail
+ X.strokeStyle='#70401f';X.lineWidth=6;X.beginPath();X.moveTo(10,23);X.quadraticCurveTo(1,10,7,2);X.stroke();
+ X.restore();}else{X.fillStyle='#86522f';X.fillRect(o.x+6,o.y,9,o.h);X.fillRect(o.x+o.w-15,o.y,9,o.h);X.fillRect(o.x,o.y+18,o.w,9);X.fillRect(o.x+5,o.y+39,o.w-10,8)}}for(let d of dust){X.globalAlpha=d.l*2;X.fillStyle='#8b704d';X.fillRect(d.x,d.y,4,4);X.globalAlpha=1}drawGoat()}
+function loop(t){if(!run)return;let dt=Math.min((t-t0)/1000,.033);t0=t;update(dt);draw();if(run)requestAnimationFrame(loop)}reset();draw();
+</script></body></html>
